@@ -9,11 +9,11 @@ from typing import Dict, Any, Optional, Callable
 from .config import DOWNLOADS_DIR
 
 def is_valid_youtube_url(url: str) -> bool:
-    """Validates whether a string is a valid YouTube video URL."""
+    """Validates whether a string is a valid YouTube video URL (including youtu.be, shorts, ?si=, etc.)."""
     if not url or not isinstance(url, str):
         return False
-    pattern = r"^(https?://)?(www\.)?(youtube\.com/watch\?v=|youtu\.be/|youtube\.com/shorts/)[a-zA-Z0-9_-]{11}(&.*)?$"
-    return bool(re.match(pattern, url.strip()))
+    pattern = r"(?:https?://)?(?:www\.|m\.)?(?:youtube\.com/(?:watch\?(?:.*&)?v=|shorts/|live/|embed/)|youtu\.be/)([a-zA-Z0-9_-]{11})"
+    return bool(re.search(pattern, url.strip()))
 
 def sanitize_filename(name: str) -> str:
     """Removes special characters to produce safe Windows filename."""
