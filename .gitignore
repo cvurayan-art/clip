@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+.env*.local
+
+# Working media directories (keep directory structure)
+downloads/*
+!downloads/.gitkeep
+output/*
+!output/.gitkeep
+temp/*
+!temp/.gitkeep
+models/*
+!models/.gitkeep
+
+# System / OS
+.DS_Store
+Thumbs.db
+*.log

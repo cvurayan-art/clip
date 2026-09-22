@@ -1,0 +1,35 @@
+{
+  "storage": {
+    "downloads_dir": "downloads",
+    "output_dir": "output",
+    "temp_dir": "temp",
+    "models_dir": "models"
+  },
+  "hardware": {
+    "prefer_cuda": true,
+    "prefer_nvenc": true,
+    "max_concurrent_renders": 1
+  },
+  "ai": {
+    "whisper_model": "small",
+    "whisper_device": "auto",
+    "ollama_host": "http://127.0.0.1:11434",
+    "ollama_model": "qwen2.5:7b"
+  },
+  "video": {
+    "default_format": "9:16",
+    "output_resolution": "1080x1920",
+    "output_quality": "High",
+    "codec": "auto",
+    "captions_default": false,
+    "captions_font_size": 24,
+    "captions_font_color": "&H00FFFFFF",
+    "captions_highlight_color": "&H0000FFFF"
+  },
+  "clips": {
+    "default_count": 5,
+    "default_min_duration": 30,
+    "default_max_duration": 60,
+    "default_style": "Best Overall"
+  }
+}
