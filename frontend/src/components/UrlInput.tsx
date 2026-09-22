@@ -14,7 +14,9 @@ export const UrlInput: React.FC<UrlInputProps> = ({ onAnalyze, isLoading, error 
   const [localValidationErr, setLocalValidationErr] = useState<string | null>(null);
 
   const isValidYoutubeUrl = (testUrl: string): boolean => {
-    const pattern = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[a-zA-Z0-9_-]{11}(&.*)?$/;
+    if (!testUrl || typeof testUrl !== "string") return false;
+    // Robust YouTube regex supporting youtu.be/?si=..., watch?v=..., shorts/, live/, embed/, etc.
+    const pattern = /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
     return pattern.test(testUrl.trim());
   };
 
@@ -29,7 +31,7 @@ export const UrlInput: React.FC<UrlInputProps> = ({ onAnalyze, isLoading, error 
     }
 
     if (!isValidYoutubeUrl(cleanUrl)) {
-      setLocalValidationErr("Please enter a valid YouTube video URL (e.g. https://www.youtube.com/watch?v=...)");
+      setLocalValidationErr("Please enter a valid YouTube video URL (e.g. https://youtu.be/... or https://www.youtube.com/watch?v=...)");
       return;
     }
 
@@ -40,7 +42,7 @@ export const UrlInput: React.FC<UrlInputProps> = ({ onAnalyze, isLoading, error 
     try {
       const text = await navigator.clipboard.readText();
       if (text) {
-        setUrl(text);
+        setUrl(text.trim());
         setLocalValidationErr(null);
       }
     } catch {
@@ -81,7 +83,7 @@ export const UrlInput: React.FC<UrlInputProps> = ({ onAnalyze, isLoading, error 
                   setUrl(e.target.value);
                   if (localValidationErr) setLocalValidationErr(null);
                 }}
-                placeholder="https://www.youtube.com/watch?v=XXXXXXXXXXX"
+                placeholder="https://youtu.be/... or https://www.youtube.com/watch?v=..."
                 disabled={isLoading}
                 className="block w-full pl-11 pr-24 py-3.5 bg-background/80 border border-surface-border rounded-xl text-white placeholder-zinc-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
               />
