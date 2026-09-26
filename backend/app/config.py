@@ -29,6 +29,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
         "max_concurrent_renders": 1,
     },
     "ai": {
+        "prefer_youtube_captions": True,
         "whisper_model": "small",
         "whisper_device": "auto",
         "ollama_host": "http://127.0.0.1:11434",

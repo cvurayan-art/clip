@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from .config import OUTPUT_DIR, TEMP_DIR, load_settings
-from .downloader import download_source_video
+from .downloader import download_source_video, fetch_youtube_transcript
 from .transcriber import VideoTranscriber
 from .selector import ClipSelector
 from .cropper import SmartCropper
@@ -118,18 +118,37 @@ class JobManager:
             source_path = download_source_video(url, video_id, progress_callback=download_cb)
             self.update_stage(job_id, "download", 100.0, "Source video downloaded", stage_status="completed")
 
-            # STAGE 2 & 3: Audio extraction & faster-whisper transcription
-            self.update_stage(job_id, "audio", 100.0, "Extracting audio for speech analysis...", stage_status="completed")
-            self.update_stage(job_id, "transcribe", 0.0, "Loading Whisper speech model...")
+            # STAGE 2 & 3: Speech transcription (Instant YouTube captions with Whisper fallback)
+            segments = None
+            prefer_yt_subs = cfg.get("ai", {}).get("prefer_youtube_captions", True)
 
-            whisper_model_name = cfg.get("ai", {}).get("whisper_model", "small")
-            transcriber = VideoTranscriber(model_size=whisper_model_name)
+            if prefer_yt_subs:
+                self.update_stage(job_id, "audio", 100.0, "Checking YouTube transcripts...", stage_status="completed")
+                self.update_stage(job_id, "transcribe", 25.0, "Fetching instant YouTube transcript...")
+                try:
+                    segments = fetch_youtube_transcript(url, video_id)
+                    if segments:
+                        self.update_stage(
+                            job_id, "transcribe", 100.0,
+                            f"Instantly loaded {len(segments)} transcript moments from YouTube (1s)!",
+                            stage_status="completed"
+                        )
+                except Exception as e:
+                    print(f"[Jobs] YouTube transcript fetch failed ({e}). Falling back to Whisper.")
 
-            def transcribe_cb(pct, msg):
-                self.update_stage(job_id, "transcribe", pct, msg)
+            # If no YouTube captions found or disabled, run local faster-whisper
+            if not segments:
+                self.update_stage(job_id, "audio", 100.0, "Extracting audio for speech analysis...", stage_status="completed")
+                self.update_stage(job_id, "transcribe", 0.0, "Loading Whisper speech model...")
 
-            segments = transcriber.transcribe(source_path, total_duration, progress_callback=transcribe_cb)
-            self.update_stage(job_id, "transcribe", 100.0, "Speech transcription complete", stage_status="completed")
+                whisper_model_name = cfg.get("ai", {}).get("whisper_model", "small")
+                transcriber = VideoTranscriber(model_size=whisper_model_name)
+
+                def transcribe_cb(pct, msg):
+                    self.update_stage(job_id, "transcribe", pct, msg)
+
+                segments = transcriber.transcribe(source_path, total_duration, progress_callback=transcribe_cb)
+                self.update_stage(job_id, "transcribe", 100.0, "Speech transcription complete", stage_status="completed")
 
             # STAGE 4: AI Highlights & Clip Selection
             self.update_stage(job_id, "highlights", 0.0, "Analyzing transcript moments...")

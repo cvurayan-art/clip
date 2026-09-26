@@ -116,8 +116,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* 3. AI Model Preferences */}
         <div className="space-y-4 pt-4 border-t border-surface-border">
           <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 block">
-            Local AI Models
+            AI Transcription & Models
           </span>
+
+          {/* Instant YouTube Captions Toggle (Optimal for Laptop) */}
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-background/80 border border-surface-border">
+            <div>
+              <span className="text-xs font-bold text-white block">
+                Instant YouTube Captions (1-Sec Laptop Mode)
+              </span>
+              <span className="text-[11px] text-zinc-400">
+                Instantly downloads existing video transcripts in 1 second. Zero CPU/GPU load.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setFormData({
+                  ...formData,
+                  ai: {
+                    ...formData.ai,
+                    prefer_youtube_captions: formData.ai?.prefer_youtube_captions === false ? true : false,
+                  },
+                })
+              }
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                formData.ai?.prefer_youtube_captions !== false ? "bg-primary" : "bg-surface-border"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  formData.ai?.prefer_youtube_captions !== false ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

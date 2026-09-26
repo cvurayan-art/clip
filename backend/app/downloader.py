@@ -135,3 +135,133 @@ def download_source_video(
             return cand
 
     raise FileNotFoundError(f"Downloaded video for {video_id} was not found on disk.")
+
+def fetch_youtube_transcript(url: str, video_id: str) -> Optional[list]:
+    """
+    Instantly downloads and parses YouTube's existing auto-captions or subtitles in 1 second.
+    Returns standard segments list [{"id": 0, "start": 1.2, "end": 4.5, "text": "...", "words": [...]}]
+    or None if video has no captions.
+    """
+    yt_dlp_bin = shutil.which("yt-dlp") or "yt-dlp"
+    from .config import TEMP_DIR
+
+    sub_template = str(TEMP_DIR / f"sub_{video_id}.%(ext)s")
+    cmd = [
+        yt_dlp_bin,
+        "--skip-download",
+        "--write-auto-subs",
+        "--write-subs",
+        "--sub-lang", "en.*,en",
+        "--sub-format", "json3/vtt",
+        "-o", sub_template,
+        "--no-playlist",
+        url.strip()
+    ]
+
+    try:
+        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=15)
+        
+        # Check for json3 format first (most detailed with word/timestamp data)
+        json3_files = list(TEMP_DIR.glob(f"sub_{video_id}.*.json3"))
+        if json3_files:
+            with open(json3_files[0], "r", encoding="utf-8") as f:
+                data = json.load(f)
+            events = data.get("events", [])
+            segments = []
+            seg_id = 0
+            for ev in events:
+                if "segs" not in ev:
+                    continue
+                start = round(ev.get("tStartMs", 0) / 1000.0, 2)
+                dur = round(ev.get("dDurationMs", 0) / 1000.0, 2)
+                end = round(start + dur, 2)
+                
+                text_pieces = []
+                words = []
+                for s in ev["segs"]:
+                    w_text = s.get("utf8", "").strip()
+                    if w_text and w_text != "\n":
+                        text_pieces.append(w_text)
+                        t_offset = s.get("tOffsetMs", 0) / 1000.0
+                        w_start = round(start + t_offset, 2)
+                        words.append({
+                            "word": w_text,
+                            "start": w_start,
+                            "end": round(w_start + 0.4, 2),
+                            "probability": 1.0
+                        })
+                
+                full_text = " ".join(text_pieces).strip()
+                if full_text and full_text != "\n":
+                    segments.append({
+                        "id": seg_id,
+                        "start": start,
+                        "end": end,
+                        "text": full_text,
+                        "words": words
+                    })
+                    seg_id += 1
+
+            # Cleanup temp files
+            for jf in json3_files:
+                try: jf.unlink()
+                except Exception: pass
+            
+            if segments:
+                return segments
+
+        # Fallback check for vtt format
+        vtt_files = list(TEMP_DIR.glob(f"sub_{video_id}.*.vtt"))
+        if vtt_files:
+            segments = []
+            seg_id = 0
+            with open(vtt_files[0], "r", encoding="utf-8") as f:
+                content = f.read()
+
+            time_pattern = re.compile(r"(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})")
+            lines = content.splitlines()
+            i = 0
+            while i < len(lines):
+                line = lines[i].strip()
+                match = time_pattern.search(line)
+                if match:
+                    s_str, e_str = match.group(1), match.group(2)
+                    def vtt_to_sec(t):
+                        h, m, s = t.split(":")
+                        return int(h) * 3600 + int(m) * 60 + float(s)
+                    start = round(vtt_to_sec(s_str), 2)
+                    end = round(vtt_to_sec(e_str), 2)
+                    
+                    text_lines = []
+                    i += 1
+                    while i < len(lines) and lines[i].strip() and not time_pattern.search(lines[i]):
+                        # Strip HTML tags like <c> </c>
+                        clean_line = re.sub(r"<[^>]+>", "", lines[i]).strip()
+                        if clean_line:
+                            text_lines.append(clean_line)
+                        i += 1
+                    
+                    text = " ".join(text_lines).strip()
+                    if text:
+                        segments.append({
+                            "id": seg_id,
+                            "start": start,
+                            "end": end,
+                            "text": text,
+                            "words": []
+                        })
+                        seg_id += 1
+                else:
+                    i += 1
+
+            for vf in vtt_files:
+                try: vf.unlink()
+                except Exception: pass
+
+            if segments:
+                return segments
+
+    except Exception as e:
+        print(f"[fetch_youtube_transcript] Error: {e}")
+
+    return None
